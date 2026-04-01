@@ -543,25 +543,23 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
         console.log('fiscal_years type:', typeof supabaseData.fiscal_years);
         console.log('fiscal_years is array?', Array.isArray(supabaseData.fiscal_years));
         
-        if (supabaseData && supabaseData.fiscal_years) {
-          const timelineData: TimelineData = {
-            rows: supabaseData.rows || [],
-            fiscalYears: Array.isArray(supabaseData.fiscal_years) ? supabaseData.fiscal_years : []
-          };
-          setData(timelineData);
-          console.log('Data loaded from Supabase:', timelineData);
+        if (supabaseData && supabaseData.fiscal_years && Array.isArray(supabaseData.fiscal_years) && supabaseData.fiscal_years.length > 0) {
+          // 检查是否有 cells 数据
+          const hasCells = supabaseData.fiscal_years.some((fy: any) => fy.cells && Object.keys(fy.cells).length > 0);
           
-          // Restore FY after data is loaded
-          const savedFY = localStorage.getItem(FY_KEY);
-          if (savedFY) {
-            const fyIndex = parseInt(savedFY);
-            if (fyIndex >= 0 && fyIndex < timelineData.fiscalYears.length) {
-              setCurrentFYIndex(fyIndex);
-              console.log('Restored FY index:', fyIndex);
-            }
+          if (hasCells) {
+            // 只有当 Supabase 中有 cells 数据时才使用
+            const timelineData: TimelineData = {
+              rows: supabaseData.rows || [],
+              fiscalYears: supabaseData.fiscal_years
+            };
+            setData(timelineData);
+            console.log('Data loaded from Supabase (with cells):', timelineData);
+          } else {
+            console.log('Supabase has no cells data, keeping initial data');
           }
         } else {
-          console.log('No data in Supabase, using initial data');
+          console.log('No valid data in Supabase, using initial data');
         }
       } catch (error) {
         console.error('Failed to load data from Supabase:', error);
