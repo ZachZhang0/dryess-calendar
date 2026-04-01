@@ -424,6 +424,30 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
   // 保存数据到 Supabase
   const saveData = async () => {
     try {
+      // 如果正在编辑单元格，先保存编辑的内容
+      if (editingCell) {
+        const key = `${editingCell.rowIndex}-${editingCell.colIndex}`;
+        const newFiscalYears = [...data.fiscalYears];
+        const newCells = { ...newFiscalYears[currentFYIndex].cells };
+        
+        if (tempValue.trim() === '') {
+          delete newCells[key];
+        } else {
+          newCells[key] = {
+            value: tempValue,
+            status: newCells[key]?.status || 'pending'
+          };
+        }
+        
+        newFiscalYears[currentFYIndex] = {
+          ...newFiscalYears[currentFYIndex],
+          cells: newCells
+        };
+        
+        setData({ ...data, fiscalYears: newFiscalYears });
+        setEditingCell(null);
+      }
+      
       console.log('Saving data to Supabase...');
       console.log('Data to save:', JSON.stringify(data, null, 2));
       
