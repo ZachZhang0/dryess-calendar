@@ -424,7 +424,8 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
   // 保存数据到 Supabase
   const saveData = async () => {
     try {
-      console.log('Saving data to Supabase...', data);
+      console.log('Saving data to Supabase...');
+      console.log('Data to save:', JSON.stringify(data, null, 2));
       
       // 先查询现有记录
       const { data: existingData, error: fetchError } = await supabase
@@ -444,6 +445,11 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
       if (existingData && existingData.id) {
         // 如果存在记录，则更新
         console.log('Updating existing record:', existingData.id);
+        console.log('Update payload:', {
+          rows: data.rows,
+          fiscal_years: data.fiscalYears,
+          updated_at: new Date().toISOString()
+        });
         result = await supabase
           .from('calendar_data')
           .update({
@@ -453,9 +459,15 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
           })
           .eq('id', existingData.id);
         error = result.error;
+        console.log('Update result:', result);
       } else {
         // 如果不存在记录，则插入
         console.log('Inserting new record');
+        console.log('Insert payload:', {
+          rows: data.rows,
+          fiscal_years: data.fiscalYears,
+          updated_at: new Date().toISOString()
+        });
         result = await supabase
           .from('calendar_data')
           .insert({
@@ -464,6 +476,7 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
             updated_at: new Date().toISOString()
           });
         error = result.error;
+        console.log('Insert result:', result);
       }
 
       if (error) {
@@ -502,10 +515,14 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
           throw error;
         }
         
+        console.log('Raw Supabase data:', supabaseData);
+        console.log('fiscal_years type:', typeof supabaseData.fiscal_years);
+        console.log('fiscal_years is array?', Array.isArray(supabaseData.fiscal_years));
+        
         if (supabaseData && supabaseData.fiscal_years) {
           const timelineData: TimelineData = {
-            rows: supabaseData.rows,
-            fiscalYears: supabaseData.fiscal_years
+            rows: supabaseData.rows || [],
+            fiscalYears: Array.isArray(supabaseData.fiscal_years) ? supabaseData.fiscal_years : []
           };
           setData(timelineData);
           console.log('Data loaded from Supabase:', timelineData);
@@ -965,7 +982,7 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
               </div>
               <div className="mt-6 flex gap-3">
                 <Button
-                  onClick={handleCellBlur}
+                  onClick={saveData}
                   className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
                 >
                   <Save className="w-4 h-4 mr-2" />
