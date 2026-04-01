@@ -123,7 +123,7 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
     return months;
   };
 
-  const addFiscalYear = () => {
+  const addFiscalYear = async () => {
     if (newFiscalYear && newFiscalYear.match(/FY\d{2}\d{2}/i)) {
       const fyName = newFiscalYear.toUpperCase();
       // Check if already exists
@@ -141,10 +141,11 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
           columns: newColumns,
           cells: {}
         };
-        setData({
+        const newData = {
           ...data,
           fiscalYears: [...data.fiscalYears, newFY]
-        });
+        };
+        setData(newData);
         // Switch to the new FY
         setCurrentFYIndex(data.fiscalYears.length);
         toast.success(`已添加 ${fyName}`, {
@@ -152,6 +153,39 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
         });
         setNewFiscalYear('');
         setFiscalYearDialog(false);
+        
+        // 自动保存到 Supabase
+        try {
+          const { data: existingData } = await supabase
+            .from('calendar_data')
+            .select('id')
+            .limit(1)
+            .single();
+
+          if (existingData && existingData.id) {
+            await supabase
+              .from('calendar_data')
+              .update({
+                rows: newData.rows,
+                fiscal_years: newData.fiscalYears,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingData.id);
+          } else {
+            await supabase
+              .from('calendar_data')
+              .insert({
+                rows: newData.rows,
+                fiscal_years: newData.fiscalYears,
+                updated_at: new Date().toISOString()
+              });
+          }
+          localStorage.setItem('timelineData', JSON.stringify(newData));
+          localStorage.setItem('currentFYIndex', currentFYIndex.toString());
+        } catch (error) {
+          console.error('Auto-save error:', error);
+          toast.error('自动保存失败', { description: '请手动点击保存按钮' });
+        }
       }
     } else {
       toast.error('格式错误', {
@@ -160,7 +194,7 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
     }
   };
 
-  const deleteFiscalYear = (index: number) => {
+  const deleteFiscalYear = async (index: number) => {
     if (data.fiscalYears.length <= 1) {
       toast.error('无法删除', {
         description: '至少保留一个 Fiscal Year',
@@ -172,7 +206,8 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
     const deletedName = newFiscalYears[index].name;
     newFiscalYears.splice(index, 1);
     
-    setData({ ...data, fiscalYears: newFiscalYears });
+    const newData = { ...data, fiscalYears: newFiscalYears };
+    setData(newData);
     
     // Adjust current index if needed
     if (currentFYIndex >= index && currentFYIndex > 0) {
@@ -182,6 +217,39 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
     toast.success('已删除 Fiscal Year', {
       description: deletedName,
     });
+    
+    // 自动保存到 Supabase
+    try {
+      const { data: existingData } = await supabase
+        .from('calendar_data')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (existingData && existingData.id) {
+        await supabase
+          .from('calendar_data')
+          .update({
+            rows: newData.rows,
+            fiscal_years: newData.fiscalYears,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingData.id);
+      } else {
+        await supabase
+          .from('calendar_data')
+          .insert({
+            rows: newData.rows,
+            fiscal_years: newData.fiscalYears,
+            updated_at: new Date().toISOString()
+          });
+      }
+      localStorage.setItem('timelineData', JSON.stringify(newData));
+      localStorage.setItem('currentFYIndex', currentFYIndex.toString());
+    } catch (error) {
+      console.error('Auto-save error:', error);
+      toast.error('自动保存失败', { description: '请手动点击保存按钮' });
+    }
   };
 
   // Handle row name double click
@@ -213,7 +281,7 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
   };
 
   // Delete row
-  const deleteRow = (index: number) => {
+  const deleteRow = async (index: number) => {
     if (data.rows.length <= 1) {
       toast.error('至少保留一个工厂');
       return;
@@ -237,7 +305,8 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
       return { ...fy, cells: newCells };
     });
     
-    setData({ ...data, rows: newRows, fiscalYears: newFiscalYears });
+    const newData = { ...data, rows: newRows, fiscalYears: newFiscalYears };
+    setData(newData);
     
     // Adjust current FY index if needed
     if (currentFYIndex >= index && currentFYIndex > 0) {
@@ -246,6 +315,39 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
     
     toast.success('工厂已删除');
     setDeleteRowConfirm(null);
+    
+    // 自动保存到 Supabase
+    try {
+      const { data: existingData } = await supabase
+        .from('calendar_data')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (existingData && existingData.id) {
+        await supabase
+          .from('calendar_data')
+          .update({
+            rows: newData.rows,
+            fiscal_years: newData.fiscalYears,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingData.id);
+      } else {
+        await supabase
+          .from('calendar_data')
+          .insert({
+            rows: newData.rows,
+            fiscal_years: newData.fiscalYears,
+            updated_at: new Date().toISOString()
+          });
+      }
+      localStorage.setItem('timelineData', JSON.stringify(newData));
+      localStorage.setItem('currentFYIndex', currentFYIndex.toString());
+    } catch (error) {
+      console.error('Auto-save error:', error);
+      toast.error('自动保存失败', { description: '请手动点击保存按钮' });
+    }
   };
 
   // Show delete row confirmation
@@ -316,7 +418,7 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
     setTempValue(cellData?.value || '');
   };
 
-  const handleCellBlur = () => {
+  const handleCellBlur = async () => {
     if (editingCell) {
       const key = `${editingCell.rowIndex}-${editingCell.colIndex}`;
       const newFiscalYears = [...data.fiscalYears];
@@ -336,9 +438,43 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
         cells: newCells
       };
       
-      setData({ ...data, fiscalYears: newFiscalYears });
+      const newData = { ...data, fiscalYears: newFiscalYears };
+      setData(newData);
       setEditingCell(null);
       toast.success('事件已保存');
+      
+      // 自动保存到 Supabase
+      try {
+        const { data: existingData } = await supabase
+          .from('calendar_data')
+          .select('id')
+          .limit(1)
+          .single();
+
+        if (existingData && existingData.id) {
+          await supabase
+            .from('calendar_data')
+            .update({
+              rows: newData.rows,
+              fiscal_years: newData.fiscalYears,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingData.id);
+        } else {
+          await supabase
+            .from('calendar_data')
+            .insert({
+              rows: newData.rows,
+              fiscal_years: newData.fiscalYears,
+              updated_at: new Date().toISOString()
+            });
+        }
+        localStorage.setItem('timelineData', JSON.stringify(newData));
+        localStorage.setItem('currentFYIndex', currentFYIndex.toString());
+      } catch (error) {
+        console.error('Auto-save error:', error);
+        toast.error('自动保存失败', { description: '请手动点击保存按钮' });
+      }
     }
   };
 
@@ -352,7 +488,7 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
     }
   };
 
-  const toggleCellStatus = (rowIndex: number, colIndex: number) => {
+  const toggleCellStatus = async (rowIndex: number, colIndex: number) => {
     const key = `${rowIndex}-${colIndex}`;
     const newFiscalYears = [...data.fiscalYears];
     const newCells = { ...newFiscalYears[currentFYIndex].cells };
@@ -369,14 +505,48 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
       cells: newCells
     };
     
-    setData({ ...data, fiscalYears: newFiscalYears });
+    const newData = { ...data, fiscalYears: newFiscalYears };
+    setData(newData);
     toast.success(
       newCells[key].status === 'completed' ? '标记为已完成' : '标记为进行中',
       { duration: 2000 }
     );
+    
+    // 自动保存到 Supabase
+    try {
+      const { data: existingData } = await supabase
+        .from('calendar_data')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (existingData && existingData.id) {
+        await supabase
+          .from('calendar_data')
+          .update({
+            rows: newData.rows,
+            fiscal_years: newData.fiscalYears,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingData.id);
+      } else {
+        await supabase
+          .from('calendar_data')
+          .insert({
+            rows: newData.rows,
+            fiscal_years: newData.fiscalYears,
+            updated_at: new Date().toISOString()
+          });
+      }
+      localStorage.setItem('timelineData', JSON.stringify(newData));
+      localStorage.setItem('currentFYIndex', currentFYIndex.toString());
+    } catch (error) {
+      console.error('Auto-save error:', error);
+      toast.error('自动保存失败', { description: '请手动点击保存按钮' });
+    }
   };
 
-  const deleteEvent = (rowIndex: number, colIndex: number) => {
+  const deleteEvent = async (rowIndex: number, colIndex: number) => {
     const key = `${rowIndex}-${colIndex}`;
     const newFiscalYears = [...data.fiscalYears];
     const newCells = { ...newFiscalYears[currentFYIndex].cells };
@@ -387,21 +557,89 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
       cells: newCells
     };
     
-    setData({ ...data, fiscalYears: newFiscalYears });
+    const newData = { ...data, fiscalYears: newFiscalYears };
+    setData(newData);
     toast.success('事件已删除');
+    
+    // 自动保存到 Supabase
+    try {
+      const { data: existingData } = await supabase
+        .from('calendar_data')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (existingData && existingData.id) {
+        await supabase
+          .from('calendar_data')
+          .update({
+            rows: newData.rows,
+            fiscal_years: newData.fiscalYears,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingData.id);
+      } else {
+        await supabase
+          .from('calendar_data')
+          .insert({
+            rows: newData.rows,
+            fiscal_years: newData.fiscalYears,
+            updated_at: new Date().toISOString()
+          });
+      }
+      localStorage.setItem('timelineData', JSON.stringify(newData));
+      localStorage.setItem('currentFYIndex', currentFYIndex.toString());
+    } catch (error) {
+      console.error('Auto-save error:', error);
+      toast.error('自动保存失败', { description: '请手动点击保存按钮' });
+    }
   };
 
-  const addRow = () => {
+  const addRow = async () => {
     if (newRowName && newRowName.trim()) {
-      setData({
+      const newData = {
         ...data,
         rows: [...data.rows, newRowName.trim()]
-      });
+      };
+      setData(newData);
       toast.success('已添加新工厂', {
         description: `新增：${newRowName.trim()}`,
       });
       setNewRowName('');
       setAddRowDialog(false);
+      
+      // 自动保存到 Supabase
+      try {
+        const { data: existingData } = await supabase
+          .from('calendar_data')
+          .select('id')
+          .limit(1)
+          .single();
+
+        if (existingData && existingData.id) {
+          await supabase
+            .from('calendar_data')
+            .update({
+              rows: newData.rows,
+              fiscal_years: newData.fiscalYears,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingData.id);
+        } else {
+          await supabase
+            .from('calendar_data')
+            .insert({
+              rows: newData.rows,
+              fiscal_years: newData.fiscalYears,
+              updated_at: new Date().toISOString()
+            });
+        }
+        localStorage.setItem('timelineData', JSON.stringify(newData));
+        localStorage.setItem('currentFYIndex', currentFYIndex.toString());
+      } catch (error) {
+        console.error('Auto-save error:', error);
+        toast.error('自动保存失败', { description: '请手动点击保存按钮' });
+      }
     }
   };
 
