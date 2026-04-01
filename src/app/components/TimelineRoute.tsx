@@ -423,14 +423,40 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
   // 保存数据到 Supabase
   const saveData = async () => {
     try {
-      const { error } = await supabase
+      // 先查询现有记录
+      const { data: existingData, error: fetchError } = await supabase
         .from('calendar_data')
-        .update({
-          rows: data.rows,
-          fiscal_years: data.fiscalYears,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', '1')
+        .select('id')
+        .limit(1)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        throw fetchError;
+      }
+
+      let error;
+      if (existingData && existingData.id) {
+        // 如果存在记录，则更新
+        const result = await supabase
+          .from('calendar_data')
+          .update({
+            rows: data.rows,
+            fiscal_years: data.fiscalYears,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingData.id);
+        error = result.error;
+      } else {
+        // 如果不存在记录，则插入
+        const result = await supabase
+          .from('calendar_data')
+          .insert({
+            rows: data.rows,
+            fiscal_years: data.fiscalYears,
+            updated_at: new Date().toISOString()
+          });
+        error = result.error;
+      }
 
       if (error) throw error
       
@@ -454,7 +480,7 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
         const { data: supabaseData, error } = await supabase
           .from('calendar_data')
           .select('*')
-          .eq('id', '1')
+          .limit(1)
           .single();
 
         if (error) throw error;
@@ -495,8 +521,7 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'calendar_data',
-          filter: `id=eq.1`
+          table: 'calendar_data'
         },
         (payload) => {
           const newData = payload.new as any;
