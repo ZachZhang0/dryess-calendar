@@ -574,35 +574,35 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
     loadData();
   }, []);
 
-  // 实时订阅数据变化
-  useEffect(() => {
-    const channel = supabase
-      .channel('calendar-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'calendar_data'
-        },
-        (payload) => {
-          const newData = payload.new as any;
-          if (newData && newData.fiscal_years) {
-            console.log('Real-time update received');
-            setData({
-              rows: newData.rows,
-              fiscalYears: newData.fiscal_years
-            });
-            toast.info('数据已同步', { duration: 2000 });
-          }
-        }
-      )
-      .subscribe();
+  // 实时订阅数据变化 - 暂时禁用，避免覆盖数据
+  // useEffect(() => {
+  //   const channel = supabase
+  //     .channel('calendar-updates')
+  //     .on(
+  //       'postgres_changes',
+  //       {
+  //         event: 'UPDATE',
+  //         schema: 'public',
+  //         table: 'calendar_data'
+  //       },
+  //       (payload) => {
+  //         const newData = payload.new as any;
+  //         if (newData && newData.fiscal_years) {
+  //           console.log('Real-time update received');
+  //           setData({
+  //             rows: newData.rows,
+  //             fiscalYears: newData.fiscal_years
+  //           });
+  //           toast.info('数据已同步', { duration: 2000 });
+  //         }
+  //       }
+  //     )
+  //     .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  //   return () => {
+  //     supabase.removeChannel(channel);
+  //   };
+  // }, []);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const SCROLL_KEY = 'timeline_scroll_position';
