@@ -557,13 +557,16 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
             console.log('Data loaded from Supabase (with cells):', timelineData);
           } else {
             console.log('Supabase has no cells data, keeping initial data');
+            console.log('Please click "Save" button to save initial data to Supabase');
           }
         } else {
           console.log('No valid data in Supabase, using initial data');
+          console.log('Please click "Save" button to save initial data to Supabase');
         }
       } catch (error) {
         console.error('Failed to load data from Supabase:', error);
         console.log('Using initial data');
+        console.log('Please click "Save" button to save initial data to Supabase');
       } finally {
         setIsLoading(false);
       }
