@@ -80,6 +80,7 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
       }
     ]
   });
+  const [isLoading, setIsLoading] = useState(true);
 
   const [currentFYIndex, setCurrentFYIndex] = useState(0);
   
@@ -423,6 +424,8 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
   // 保存数据到 Supabase
   const saveData = async () => {
     try {
+      console.log('Saving data to Supabase...', data);
+      
       // 先查询现有记录
       const { data: existingData, error: fetchError } = await supabase
         .from('calendar_data')
@@ -431,13 +434,17 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
         .single();
 
       if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching existing data:', fetchError);
         throw fetchError;
       }
 
+      let result;
       let error;
+      
       if (existingData && existingData.id) {
         // 如果存在记录，则更新
-        const result = await supabase
+        console.log('Updating existing record:', existingData.id);
+        result = await supabase
           .from('calendar_data')
           .update({
             rows: data.rows,
@@ -448,7 +455,8 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
         error = result.error;
       } else {
         // 如果不存在记录，则插入
-        const result = await supabase
+        console.log('Inserting new record');
+        result = await supabase
           .from('calendar_data')
           .insert({
             rows: data.rows,
@@ -458,7 +466,12 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
         error = result.error;
       }
 
-      if (error) throw error
+      if (error) {
+        console.error('Error in database operation:', error);
+        throw error;
+      }
+      
+      console.log('Data saved successfully');
       
       localStorage.setItem('timelineData', JSON.stringify(data));
       localStorage.setItem('currentFYIndex', currentFYIndex.toString());
@@ -477,13 +490,17 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
   useEffect(() => {
     const loadData = async () => {
       try {
+        console.log('Loading data from Supabase...');
         const { data: supabaseData, error } = await supabase
           .from('calendar_data')
           .select('*')
           .limit(1)
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase load error:', error);
+          throw error;
+        }
         
         if (supabaseData && supabaseData.fiscal_years) {
           const timelineData: TimelineData = {
@@ -491,7 +508,7 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
             fiscalYears: supabaseData.fiscal_years
           };
           setData(timelineData);
-          console.log('Data loaded from Supabase');
+          console.log('Data loaded from Supabase:', timelineData);
           
           // Restore FY after data is loaded
           const savedFY = localStorage.getItem(FY_KEY);
@@ -502,10 +519,14 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
               console.log('Restored FY index:', fyIndex);
             }
           }
+        } else {
+          console.log('No data in Supabase, using initial data');
         }
       } catch (error) {
         console.error('Failed to load data from Supabase:', error);
         console.log('Using initial data');
+      } finally {
+        setIsLoading(false);
       }
     };
     
