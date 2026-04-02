@@ -1311,7 +1311,67 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
               </div>
               <div className="mt-6 flex gap-3">
                 <Button
-                  onClick={saveData}
+                  onClick={async () => {
+                    // 先保存编辑的内容
+                    if (editingCell) {
+                      const key = `${editingCell.rowIndex}-${editingCell.colIndex}`;
+                      const newFiscalYears = [...data.fiscalYears];
+                      const newCells = { ...newFiscalYears[currentFYIndex].cells };
+                      
+                      if (tempValue.trim() === '') {
+                        delete newCells[key];
+                      } else {
+                        newCells[key] = {
+                          value: tempValue,
+                          status: newCells[key]?.status || 'pending'
+                        };
+                      }
+                      
+                      newFiscalYears[currentFYIndex] = {
+                        ...newFiscalYears[currentFYIndex],
+                        cells: newCells
+                      };
+                      
+                      const newData = { ...data, fiscalYears: newFiscalYears };
+                      setData(newData);
+                      setEditingCell(null);
+                      setTempValue('');
+                      toast.success('事件已保存');
+                      
+                      // 自动保存到 Supabase
+                      try {
+                        const { data: existingData } = await supabase
+                          .from('calendar_data')
+                          .select('id')
+                          .limit(1)
+                          .single();
+
+                        if (existingData && existingData.id) {
+                          await supabase
+                            .from('calendar_data')
+                            .update({
+                              rows: newData.rows,
+                              fiscal_years: newData.fiscalYears,
+                              updated_at: new Date().toISOString()
+                            })
+                            .eq('id', existingData.id);
+                        } else {
+                          await supabase
+                            .from('calendar_data')
+                            .insert({
+                              rows: newData.rows,
+                              fiscal_years: newData.fiscalYears,
+                              updated_at: new Date().toISOString()
+                            });
+                        }
+                        localStorage.setItem('timelineData', JSON.stringify(newData));
+                        localStorage.setItem('currentFYIndex', currentFYIndex.toString());
+                      } catch (error) {
+                        console.error('Auto-save error:', error);
+                        toast.error('自动保存失败', { description: '请手动点击保存按钮' });
+                      }
+                    }
+                  }}
                   className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
                 >
                   <Save className="w-4 h-4 mr-2" />
