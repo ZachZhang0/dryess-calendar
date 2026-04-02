@@ -859,6 +859,21 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
             };
             setData(timelineData);
             console.log('Data loaded from Supabase (with cells):', timelineData);
+            
+            // 恢复上次选择的 Fiscal Year 索引
+            const savedFYIndex = localStorage.getItem('timeline_current_fy');
+            if (savedFYIndex) {
+              const fyIndex = parseInt(savedFYIndex);
+              // 确保索引在有效范围内
+              if (fyIndex >= 0 && fyIndex < timelineData.fiscalYears.length) {
+                setCurrentFYIndex(fyIndex);
+                console.log('Restored FY index:', fyIndex);
+              } else {
+                console.log('Saved FY index out of range, using default (0)');
+              }
+            } else {
+              console.log('No saved FY index, using default (0)');
+            }
           } else {
             console.log('Supabase has no cells data, keeping initial data');
             console.log('Please click "Save" button to save initial data to Supabase');
