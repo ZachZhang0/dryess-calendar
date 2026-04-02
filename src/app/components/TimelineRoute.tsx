@@ -424,13 +424,21 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
       const newFiscalYears = [...data.fiscalYears];
       const newCells = { ...newFiscalYears[currentFYIndex].cells };
       
+      console.log('=== Before modification ===');
+      console.log('Key:', key);
+      console.log('Is new cell?', !newCells[key]);
+      console.log('Old cell value:', newCells[key]);
+      console.log('New temp value:', tempValue);
+      
       if (tempValue.trim() === '') {
         delete newCells[key];
+        console.log('Deleted cell (empty value)');
       } else {
         newCells[key] = {
           value: tempValue,
           status: newCells[key]?.status || 'pending'
         };
+        console.log('Updated/Added cell:', newCells[key]);
       }
       
       newFiscalYears[currentFYIndex] = {
@@ -443,10 +451,14 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
       setEditingCell(null);
       toast.success('事件已保存');
       
+      console.log('=== After modification ===');
+      console.log('Cells in newData.fiscalYears[' + currentFYIndex + ']:', newData.fiscalYears[currentFYIndex].cells);
+      console.log('New cell value:', newData.fiscalYears[currentFYIndex].cells[key]);
+      console.log('Total cells count:', Object.keys(newData.fiscalYears[currentFYIndex].cells).length);
+      console.log('All cell keys:', Object.keys(newData.fiscalYears[currentFYIndex].cells));
+      
       console.log('=== HandleCellBlur: Auto-save started ===');
       console.log('Current FY Index:', currentFYIndex);
-      console.log('Data to save:', JSON.stringify(newData, null, 2));
-      console.log('Cells in current FY:', newData.fiscalYears[currentFYIndex].cells);
       
       // 自动保存到 Supabase
       try {
@@ -461,35 +473,52 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
           throw fetchError;
         }
 
-        console.log('Existing data:', existingData);
+        console.log('Existing data ID:', existingData?.id);
 
         let result;
         let error;
         
         if (existingData && existingData.id) {
-          console.log('Updating existing record:', existingData.id);
+          console.log('=== Performing UPDATE ===');
           const updatePayload = {
             rows: newData.rows,
             fiscal_years: newData.fiscalYears,
             updated_at: new Date().toISOString()
           };
-          console.log('Update payload fiscal_years[0].cells:', updatePayload.fiscal_years[currentFYIndex]?.cells);
+          console.log('Update payload - fiscal_years type:', typeof updatePayload.fiscal_years);
+          console.log('Update payload - fiscal_years length:', updatePayload.fiscal_years.length);
+          console.log('Update payload - fiscal_years[' + currentFYIndex + '].cells:', updatePayload.fiscal_years[currentFYIndex]?.cells);
+          console.log('Update payload - specific cell [' + key + ']:', updatePayload.fiscal_years[currentFYIndex]?.cells?.[key]);
           
           result = await supabase
             .from('calendar_data')
             .update(updatePayload)
             .eq('id', existingData.id);
           error = result.error;
-          console.log('Update result:', result);
-          console.log('Update error:', error);
+          
+          console.log('Update result data:', result.data);
+          console.log('Update result error:', error);
+          
+          // 验证保存结果
+          if (!error) {
+            console.log('=== Verifying save ===');
+            const { data: verifyData } = await supabase
+              .from('calendar_data')
+              .select('fiscal_years')
+              .eq('id', existingData.id)
+              .single();
+            console.log('Verified data - fiscal_years[' + currentFYIndex + '].cells[' + key + ']:', 
+              verifyData?.fiscal_years?.[currentFYIndex]?.cells?.[key]);
+          }
         } else {
-          console.log('Inserting new record');
+          console.log('=== Performing INSERT ===');
           const insertPayload = {
             rows: newData.rows,
             fiscal_years: newData.fiscalYears,
             updated_at: new Date().toISOString()
           };
-          console.log('Insert payload fiscal_years[0].cells:', insertPayload.fiscal_years[currentFYIndex]?.cells);
+          console.log('Insert payload - fiscal_years[' + currentFYIndex + '].cells:', insertPayload.fiscal_years[currentFYIndex]?.cells);
+          console.log('Insert payload - specific cell [' + key + ']:', insertPayload.fiscal_years[currentFYIndex]?.cells?.[key]);
           
           result = await supabase
             .from('calendar_data')
