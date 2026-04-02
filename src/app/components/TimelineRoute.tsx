@@ -443,34 +443,71 @@ export function TimelineRoute({ onLogout, onSwitchView }: TimelineRouteProps) {
       setEditingCell(null);
       toast.success('事件已保存');
       
+      console.log('=== HandleCellBlur: Auto-save started ===');
+      console.log('Current FY Index:', currentFYIndex);
+      console.log('Data to save:', JSON.stringify(newData, null, 2));
+      console.log('Cells in current FY:', newData.fiscalYears[currentFYIndex].cells);
+      
       // 自动保存到 Supabase
       try {
-        const { data: existingData } = await supabase
+        const { data: existingData, error: fetchError } = await supabase
           .from('calendar_data')
           .select('id')
           .limit(1)
           .single();
 
-        if (existingData && existingData.id) {
-          await supabase
-            .from('calendar_data')
-            .update({
-              rows: newData.rows,
-              fiscal_years: newData.fiscalYears,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', existingData.id);
-        } else {
-          await supabase
-            .from('calendar_data')
-            .insert({
-              rows: newData.rows,
-              fiscal_years: newData.fiscalYears,
-              updated_at: new Date().toISOString()
-            });
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          console.error('Fetch error:', fetchError);
+          throw fetchError;
         }
+
+        console.log('Existing data:', existingData);
+
+        let result;
+        let error;
+        
+        if (existingData && existingData.id) {
+          console.log('Updating existing record:', existingData.id);
+          const updatePayload = {
+            rows: newData.rows,
+            fiscal_years: newData.fiscalYears,
+            updated_at: new Date().toISOString()
+          };
+          console.log('Update payload fiscal_years[0].cells:', updatePayload.fiscal_years[currentFYIndex]?.cells);
+          
+          result = await supabase
+            .from('calendar_data')
+            .update(updatePayload)
+            .eq('id', existingData.id);
+          error = result.error;
+          console.log('Update result:', result);
+          console.log('Update error:', error);
+        } else {
+          console.log('Inserting new record');
+          const insertPayload = {
+            rows: newData.rows,
+            fiscal_years: newData.fiscalYears,
+            updated_at: new Date().toISOString()
+          };
+          console.log('Insert payload fiscal_years[0].cells:', insertPayload.fiscal_years[currentFYIndex]?.cells);
+          
+          result = await supabase
+            .from('calendar_data')
+            .insert(insertPayload);
+          error = result.error;
+          console.log('Insert result:', result);
+          console.log('Insert error:', error);
+        }
+
+        if (error) {
+          console.error('Database error:', error);
+          throw error;
+        }
+        
         localStorage.setItem('timelineData', JSON.stringify(newData));
         localStorage.setItem('currentFYIndex', currentFYIndex.toString());
+        console.log('=== Auto-save completed successfully ===');
+        console.log('Saved to localStorage');
       } catch (error) {
         console.error('Auto-save error:', error);
         toast.error('自动保存失败', { description: '请手动点击保存按钮' });
