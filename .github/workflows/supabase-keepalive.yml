@@ -27,6 +27,8 @@ jobs:
       - name: Keep Supabase Project Alive
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_URL: https://ehsfmciathifanermnoc.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           echo "=== Starting Supabase Keep-Alive ==="
           echo "Executing database query..."
@@ -34,35 +36,24 @@ jobs:
           # 检查环境变量
           if [ -z "$SUPABASE_DB_URL" ]; then
             echo "❌ Error: SUPABASE_DB_URL is not set!"
-            echo "❌ Please add the secret in GitHub Settings > Secrets and variables > Actions"
             exit 1
           fi
           
           echo "✓ Database URL is set"
-          echo "Database: $(echo $SUPABASE_DB_URL | sed 's/postgres:\/\/postgres:[^@]*@/postgres:\/\/***@/')"
           
-          # 使用 psql 执行简单的查询（通过 hosts 文件强制 IPv4）
-          PGPASSWORD=$(echo $SUPABASE_DB_URL | sed -n 's/.*:\/\/postgres:\([^@]*\)@.*/\1/p')
-          DB_HOST=$(echo $SUPABASE_DB_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
-          
-          # 获取 IPv4 地址
-          IPV4_ADDR=$(getent ahostsv4 "$DB_HOST" | head -n1 | awk '{print $1}')
-          echo "Resolved IPv4: $IPV4_ADDR"
-          
-          # 临时修改 hosts 文件
-          echo "$IPV4_ADDR $DB_HOST" | sudo tee -a /etc/hosts
-          
-          # 使用 psql 连接
-          echo "SELECT NOW() as current_time, version() as postgres_version;" | \
-            PGPASSWORD="$PGPASSWORD" psql -h "$DB_HOST" -U postgres -d postgres
+          # 使用 curl 调用 Supabase API（IPv4 友好）
+          RESPONSE=$(curl -s -X GET "$SUPABASE_URL/rest/v1/calendar_data?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json")
           
           if [ $? -eq 0 ]; then
-            echo "✅ Database query executed successfully!"
+            echo "✅ API call executed successfully!"
+            echo "Response: $RESPONSE"
             echo "✅ Supabase project keep-alive completed!"
             echo "✅ Next run will be in 6 days."
           else
-            echo "❌ Database query failed!"
-            echo "❌ Please check the database connection and credentials."
+            echo "❌ API call failed!"
             exit 1
           fi
           
