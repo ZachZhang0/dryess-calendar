@@ -19,13 +19,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Install Supabase CLI
-        run: npm install -g supabase
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
       
       - name: Keep Supabase Project Alive
         env:
@@ -42,6 +39,7 @@ jobs:
           fi
           
           echo "✓ Database URL is set"
+          echo "Database: $(echo $SUPABASE_DB_URL | sed 's/postgres:\/\/postgres:[^@]*@/postgres:\/\/***@/')"
           
           # 使用 psql 执行简单的查询
           PGPASSWORD=$(echo $SUPABASE_DB_URL | sed -n 's/.*:\/\/postgres:\([^@]*\)@.*/\1/p')
