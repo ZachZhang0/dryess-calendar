@@ -41,12 +41,20 @@ jobs:
           echo "✓ Database URL is set"
           echo "Database: $(echo $SUPABASE_DB_URL | sed 's/postgres:\/\/postgres:[^@]*@/postgres:\/\/***@/')"
           
-          # 使用 psql 执行简单的查询（强制使用 IPv4）
+          # 使用 psql 执行简单的查询（通过 hosts 文件强制 IPv4）
           PGPASSWORD=$(echo $SUPABASE_DB_URL | sed -n 's/.*:\/\/postgres:\([^@]*\)@.*/\1/p')
           DB_HOST=$(echo $SUPABASE_DB_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
           
+          # 获取 IPv4 地址
+          IPV4_ADDR=$(getent ahostsv4 "$DB_HOST" | head -n1 | awk '{print $1}')
+          echo "Resolved IPv4: $IPV4_ADDR"
+          
+          # 临时修改 hosts 文件
+          echo "$IPV4_ADDR $DB_HOST" | sudo tee -a /etc/hosts
+          
+          # 使用 psql 连接
           echo "SELECT NOW() as current_time, version() as postgres_version;" | \
-            psql -4 -h "$DB_HOST" -U postgres -d postgres
+            PGPASSWORD="$PGPASSWORD" psql -h "$DB_HOST" -U postgres -d postgres
           
           if [ $? -eq 0 ]; then
             echo "✅ Database query executed successfully!"
