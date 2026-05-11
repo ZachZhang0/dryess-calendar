@@ -46,7 +46,7 @@ jobs:
           DB_HOST=$(echo $SUPABASE_DB_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
           
           echo "SELECT NOW() as current_time, version() as postgres_version;" | \
-            psql -h "$DB_HOST" -U postgres -d postgres
+            psql -4 -h "$DB_HOST" -U postgres -d postgres
           
           if [ $? -eq 0 ]; then
             echo "✅ Database query executed successfully!"
