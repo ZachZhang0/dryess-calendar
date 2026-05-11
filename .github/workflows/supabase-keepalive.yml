@@ -1,14 +1,8 @@
-# Supabase 保活 GitHub Action
-# 每 6 天自动执行一次数据库查询，防止项目被暂停
-
 name: Supabase Keep-Alive
 
 on:
-  # 每 6 天执行一次（避开 7 天限制）
   schedule:
-    - cron: '0 3 */6 * *'  # UTC 时间 3:00，每 6 天
-  
-  # 允许手动触发
+    - cron: '0 3 */6 * *'
   workflow_dispatch:
 
 jobs:
@@ -16,8 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
       - name: Install PostgreSQL client
         run: |
@@ -26,36 +19,21 @@ jobs:
       
       - name: Keep Supabase Project Alive
         env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_URL: https://ehsfmciathifanermnoc.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           echo "=== Starting Supabase Keep-Alive ==="
-          echo "Executing database query..."
           
-          # 检查环境变量
-          if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "❌ Error: SUPABASE_DB_URL is not set!"
-            echo "❌ Please add the secret in GitHub Settings > Secrets and variables > Actions"
-            exit 1
-          fi
-          
-          echo "✓ Database URL is set"
-          echo "Database: $(echo $SUPABASE_DB_URL | sed 's/postgres:\/\/postgres:[^@]*@/postgres:\/\/***@/')"
-          
-          # 使用 psql 执行简单的查询（强制使用 IPv4）
-          PGPASSWORD=$(echo $SUPABASE_DB_URL | sed -n 's/.*:\/\/postgres:\([^@]*\)@.*/\1/p')
-          DB_HOST=$(echo $SUPABASE_DB_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
-          
-          echo "SELECT NOW() as current_time, version() as postgres_version;" | \
-            psql -4 -h "$DB_HOST" -U postgres -d postgres
+          # 使用 curl 调用 Supabase API
+          RESPONSE=$(curl -s -X GET "$SUPABASE_URL/rest/v1/calendar_data?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
           
           if [ $? -eq 0 ]; then
-            echo "✅ Database query executed successfully!"
+            echo "✅ API call executed successfully!"
+            echo "Response: $RESPONSE"
             echo "✅ Supabase project keep-alive completed!"
-            echo "✅ Next run will be in 6 days."
           else
-            echo "❌ Database query failed!"
-            echo "❌ Please check the database connection and credentials."
+            echo "❌ API call failed!"
             exit 1
           fi
-          
-          echo "=== Keep-Alive Completed ==="
