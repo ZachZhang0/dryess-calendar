@@ -1,0 +1,51 @@
+# Supabase 保活 GitHub Action
+# 每 6 天自动执行一次数据库查询，防止项目被暂停
+
+name: Supabase Keep-Alive
+
+on:
+  # 每 6 天执行一次（避开 7 天限制）
+  schedule:
+    - cron: '0 3 */6 * *'  # UTC 时间 3:00，每 6 天
+  
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Supabase CLI
+        run: npm install -g supabase
+      
+      - name: Keep Supabase Project Alive
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          echo "=== Starting Supabase Keep-Alive ==="
+          echo "Executing database query..."
+          
+          # 使用 Supabase CLI 执行数据库查询
+          supabase db execute --sql "SELECT NOW() as current_time, version() as postgres_version;" \
+            --db-url "$SUPABASE_DB_URL"
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Database query executed successfully!"
+            echo "✅ Supabase project keep-alive completed!"
+            echo "✅ Next run will be in 6 days."
+          else
+            echo "❌ Database query failed!"
+            echo "❌ Please check the database connection."
+            exit 1
+          fi
+          
+          echo "=== Keep-Alive Completed ==="
