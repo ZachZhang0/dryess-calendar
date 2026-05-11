@@ -34,9 +34,20 @@ jobs:
           echo "=== Starting Supabase Keep-Alive ==="
           echo "Executing database query..."
           
-          # 使用 Supabase CLI 执行数据库查询
-          supabase db execute --sql "SELECT NOW() as current_time, version() as postgres_version;" \
-            --db-url "$SUPABASE_DB_URL"
+          # 检查环境变量
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "❌ Error: SUPABASE_DB_URL is not set!"
+            echo "❌ Please add the secret in GitHub Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          
+          echo "✓ Database URL is set"
+          
+          # 使用 psql 执行简单的查询
+          PGPASSWORD=$(echo $SUPABASE_DB_URL | sed -n 's/.*:\/\/postgres:\([^@]*\)@.*/\1/p')
+          
+          echo "SELECT NOW() as current_time, version() as postgres_version;" | \
+            psql "$SUPABASE_DB_URL"
           
           if [ $? -eq 0 ]; then
             echo "✅ Database query executed successfully!"
@@ -44,7 +55,7 @@ jobs:
             echo "✅ Next run will be in 6 days."
           else
             echo "❌ Database query failed!"
-            echo "❌ Please check the database connection."
+            echo "❌ Please check the database connection and credentials."
             exit 1
           fi
           
