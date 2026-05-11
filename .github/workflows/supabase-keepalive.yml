@@ -41,11 +41,12 @@ jobs:
           echo "✓ Database URL is set"
           echo "Database: $(echo $SUPABASE_DB_URL | sed 's/postgres:\/\/postgres:[^@]*@/postgres:\/\/***@/')"
           
-          # 使用 psql 执行简单的查询
+          # 使用 psql 执行简单的查询（强制使用 IPv4）
           PGPASSWORD=$(echo $SUPABASE_DB_URL | sed -n 's/.*:\/\/postgres:\([^@]*\)@.*/\1/p')
+          DB_HOST=$(echo $SUPABASE_DB_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
           
           echo "SELECT NOW() as current_time, version() as postgres_version;" | \
-            psql "$SUPABASE_DB_URL"
+            psql -h "$DB_HOST" -U postgres -d postgres
           
           if [ $? -eq 0 ]; then
             echo "✅ Database query executed successfully!"
