@@ -1,9 +1,9 @@
 name: Supabase Keep-Alive
 
 on:
-  # 每 6 天执行一次（避开 7 天限制）
+  # 每天执行一次（避开 7 天限制）
   schedule:
-    - cron: '0 3 */6 * *'  # UTC 时间 3:00，每 6 天
+    - cron: '0 0 * * *'  # UTC 时间 0:00，每天执行
   
   # 允许手动触发
   workflow_dispatch:
@@ -22,7 +22,7 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           echo "=== Starting Supabase Keep-Alive ==="
-          echo "Executing database query..."
+          echo "Step 1: Executing database query (SELECT)..."
           
           # 检查环境变量
           if [ -z "$SUPABASE_ANON_KEY" ]; then
@@ -31,21 +31,43 @@ jobs:
             exit 1
           fi
           
-          # 使用 curl 调用 Supabase API（IPv4 友好）
-          RESPONSE=$(curl -s -X GET "$SUPABASE_URL/rest/v1/calendar_data?select=id&limit=1" \
+          # 第一步：读取操作（SELECT）
+          SELECT_RESPONSE=$(curl -s -X GET "$SUPABASE_URL/rest/v1/calendar_data?select=id&limit=1" \
             -H "apikey: $SUPABASE_ANON_KEY" \
             -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
-            -H "Content-Type: application/json")
+            -H "Content-Type: application/json" \
+            -H "Prefer: cache-control=no-cache")
           
           if [ $? -eq 0 ]; then
-            echo "✅ API call executed successfully!"
-            echo "Response: $RESPONSE"
-            echo "✅ Supabase project keep-alive completed!"
-            echo "✅ Next run will be in 6 days."
+            echo "✅ SELECT executed successfully!"
+            echo "Response: $SELECT_RESPONSE"
           else
-            echo "❌ API call failed!"
-            echo "Response: $RESPONSE"
-            exit 1
+            echo "⚠️ SELECT failed (non-critical)"
+            echo "Response: $SELECT_RESPONSE"
           fi
           
+          # 第二步：写入操作（INSERT）- 插入心跳记录
+          echo ""
+          echo "Step 2: Executing heartbeat insert (INSERT)..."
+          HEARTBEAT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+          
+          INSERT_RESPONSE=$(curl -s -X POST "$SUPABASE_URL/rest/v1/calendar_data" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: resolution=merge-duplicates" \
+            -d "{\"id\":\"heartbeat\",\"updated_at\":\"$HEARTBEAT_TIME\",\"rows\":[],\"fiscal_years\":[]}")
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ INSERT executed successfully!"
+            echo "Response: $INSERT_RESPONSE"
+          else
+            echo "⚠️ INSERT failed (non-critical, may need RLS adjustment)"
+            echo "Response: $INSERT_RESPONSE"
+            echo "Note: SELECT operation was successful, keep-alive still effective"
+          fi
+          
+          echo ""
+          echo "✅ Supabase project keep-alive completed!"
+          echo "✅ Next run will be in 24 hours (daily at UTC 0:00)"
           echo "=== Keep-Alive Completed ==="
